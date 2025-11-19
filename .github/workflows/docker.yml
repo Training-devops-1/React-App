@@ -19,6 +19,8 @@ jobs:
       # 📥 Step 2: Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+         clean: false
 
       # ⚙️ Step 3: Set up Node.js
       - name: Set up Node.js
