@@ -1,60 +1,67 @@
-name: Build, Push, and Deploy React App
+name: Build, Push & Deploy React App
 
 on:
   push:
     branches:
-      - main   # Run workflow only when code is pushed to 'main' branch
+      - main
 
 jobs:
-  build-and-deploy:
+  deploy-react:
     runs-on: self-hosted
 
     steps:
-      # 🧹 Step 1: Clean up workspace and previous logs
-      - name: Clear old workspace logs
+      # Clean workspace using stash instead of rm
+      - name: Cleanup old workspace
         run: |
           git stash --include-untracked || true
-          echo "Old logs and changes cleared."
+          git stash clear || true
+          echo "Workspace cleaned using stash."
 
-      # 📥 Step 2: Checkout repository
-      - name: Checkout repository
+      # Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
-         clean: false
+          clean: false   # important for self-hosted to avoid auto delete
 
-      # ⚙️ Step 3: Set up Node.js
-      - name: Set up Node.js
+      # Setup Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
-      # 📦 Step 4: Install dependencies
+      # Install node modules
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      # 🏗️ Step 5: Build React app
+      # Build React app
       - name: Build React app
         run: npm run build
 
-      # 🐳 Step 6: Log in to Docker Hub
-      - name: Log in to Docker Hub
+      # Docker login
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 🏷️ Step 7: Build and tag Docker image
+      # Build docker image
       - name: Build Docker image
-        run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/react-app:latest .
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/react-app:latest .
 
-      # 🚀 Step 8: Push Docker image to Docker Hub
+      # Push docker image
       - name: Push Docker image
-        run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/react-app:latest
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/react-app:latest
 
-      # 🧩 Step 9: Deploy container (example - you can adjust for your server)
-      - name: Deploy container
+      # Stop old container
+      - name: Stop old container
         run: |
-          echo "Deploying container..."
+          docker stop react-app || true
+          docker rm react-app || true
+
+      # Run new container
+      - name: Deploy new container
+        run: |
           docker run -d -p 3010:80 --name react-app --restart always ${{ secrets.DOCKER_USERNAME }}/react-app:latest
+
+      - name: Deployment Success
+        run: echo "🚀 React App deployed successfully!"
